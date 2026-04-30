@@ -1,6 +1,6 @@
 # Plonge
 
-Use `plonge` to compute the embeddings of all the cells of a given CSV file. Inspired from [`xan`](https://github.com/medialab/xan) and [`yuzu`](https://github.com/medialab/yuzu). Based on [`casanova`](https://github.com/medialab/casanova) and [`sentence-transformers`](https://sbert.net/)
+Use `plonge` to compute the embeddings a whole column in a given CSV file. Inspired from [`xan`](https://github.com/medialab/xan) and [`yuzu`](https://github.com/medialab/yuzu). Based on [`casanova`](https://github.com/medialab/casanova) and [`sentence-transformers`](https://sbert.net/)
 
 ```
 usage: plonge [-h] [-m MODEL] [-d DEVICE] [-b BATCH] [-p PROGRESS] column
