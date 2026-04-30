@@ -20,30 +20,28 @@ def main():
     parser.add_argument("-p", "--progress", type=int, help="For progress bar, need number of rows")
     
     args = parser.parse_args()
-
-    column, model, batch, total = args.column, args.model, args.batch, args.progress
     
     file = sys.stdin
     output = sys.stdout
 
-    model = SentenceTransformer(model, device="cpu")
+    model = SentenceTransformer(args.model, device=args.device)
 
     with casanova.enricher(file, output, add=["embedding"]) as enricher:
-        col = enricher.fieldnames.index(column)
+        col = enricher.fieldnames.index(args.column)
         
         accu = []
-        with tqdm.tqdm(total=total, desc="Computing embeddings") as progress:
+        with tqdm.tqdm(total=args.progress, desc="Computing embeddings") as progress:
             for row in enricher:
                 accu.append(row)
-                if len(accu) == batch:
-                    gen = compute([it[col] for it in accu], model, batch_size = batch)
+                if len(accu) == args.batch:
+                    gen = compute([it[col] for it in accu], model, batch_size = args.batch)
                     for (row, vec) in zip(accu, gen):
                         enricher.writerow(row, [vec])
                     accu = []
                     
-                    progress.update(batch)
+                    progress.update(args.batch)
                 
-            gen = compute([it[col] for it in accu], model, batch_size = batch)
+            gen = compute([it[col] for it in accu], model, batch_size = args.batch)
             for (row, vec) in zip(accu, gen):
                 enricher.writerow(row, [vec])
             progress.update(len(accu))
