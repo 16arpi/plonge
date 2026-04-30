@@ -28,9 +28,9 @@ def main():
 
     with casanova.enricher(file, output, add=["embedding"], prebuffer_bytes=1000) as enricher:
         col = enricher.fieldnames.index(args.column)
-        
+        total = casanova.enricher.total
         accu = []
-        with tqdm.tqdm(total=args.progress, desc="Computing embeddings") as progress:
+        with tqdm.tqdm(total=args.progress if args.progress else total, desc="Computing embeddings") as progress:
             for row in enricher:
                 accu.append(row)
                 if len(accu) == args.batch:
