@@ -26,7 +26,7 @@ def main():
 
     model = SentenceTransformer(args.model, device=args.device)
 
-    with casanova.enricher(file, output, add=["embedding"]) as enricher:
+    with casanova.enricher(file, output, add=["embedding"], prebuffer_bytes=1000) as enricher:
         col = enricher.fieldnames.index(args.column)
         
         accu = []
