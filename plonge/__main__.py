@@ -33,14 +33,15 @@ def clear_device_cache(device):
         torch.mps.empty_cache()
 
 
-def write_batch(rows, col, model, enricher, batch_size, device):
+def write_batch(rows, col, model, enricher: casanova.Enricher, batch_size, device):
     if not rows:
         return 0
 
-    vectors = compute([row[col] for row in rows], model, batch_size=batch_size, device=device)
+    vectors = [compute([row[c] for row in rows], model, batch_size=batch_size, device=device) for c in col]
     try:
-        for row, vec in zip(rows, vectors):
-            enricher.writerow(row, [vec])
+        for row_vec_tuple in zip(rows, *vectors):
+            row, *vec_tuple = row_vec_tuple
+            enricher.writerow(row, list(vec_tuple))
     finally:
         del vectors
         clear_device_cache(device)
@@ -49,7 +50,7 @@ def write_batch(rows, col, model, enricher, batch_size, device):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("column", help="Column name to process")
+    parser.add_argument("columns", help="Column name to process")
     parser.add_argument("-m", "--model", help="Model name from HuggingFace")
     parser.add_argument("-d", "--device", help="Device to use for computation", default="cpu")
     parser.add_argument("-b", "--batch", type=int, default=32, help="Enable model flag")
@@ -62,8 +63,11 @@ def main():
 
     model = SentenceTransformer(args.model, device=args.device)
 
-    with casanova.enricher(file, output, add=["embedding"], prebuffer_bytes=1000) as enricher:
-        col = enricher.fieldnames.index(args.column)
+    columns = args.columns.split(',')
+    columns_names = [f"embedding_{col}" for col in columns]
+
+    with casanova.enricher(file, output, add=columns_names) as enricher:
+        col = [enricher.fieldnames.index(col) for col in columns]
         total = enricher.total
         accu = []
         with tqdm.tqdm(total=args.progress if args.progress else total, desc="Computing embeddings") as progress:
