@@ -1,15 +1,51 @@
 import argparse
 import casanova
 import sys
+import torch
 import tqdm
 
 from sentence_transformers.sentence_transformer import SentenceTransformer
 
-def compute(texts, model: SentenceTransformer, batch_size = 32):
-    embeddings = model.encode(texts, batch_size=batch_size)
-    embeddings = embeddings.to_device("cpu")
-    embeddings = embeddings.tolist()
-    return embeddings
+def compute(texts, model: SentenceTransformer, batch_size=32, device=None):
+    if not texts:
+        return []
+
+    embeddings = model.encode(
+        texts,
+        batch_size=batch_size,
+        device=device,
+        convert_to_numpy=True,
+        convert_to_tensor=False,
+        show_progress_bar=False,
+    )
+    return embeddings.tolist()
+
+
+def clear_device_cache(device):
+    if not device:
+        return
+
+    device_type = str(device).split(":", 1)[0]
+
+    if device_type == "cuda" and torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    elif device_type == "mps" and torch.backends.mps.is_available():
+        torch.mps.empty_cache()
+
+
+def write_batch(rows, col, model, enricher, batch_size, device):
+    if not rows:
+        return 0
+
+    vectors = compute([row[col] for row in rows], model, batch_size=batch_size, device=device)
+    try:
+        for row, vec in zip(rows, vectors):
+            enricher.writerow(row, [vec])
+    finally:
+        del vectors
+        clear_device_cache(device)
+
+    return len(rows)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -34,17 +70,13 @@ def main():
             for row in enricher:
                 accu.append(row)
                 if len(accu) == args.batch:
-                    gen = compute([it[col] for it in accu], model, batch_size = args.batch)
-                    for (row, vec) in zip(accu, gen):
-                        enricher.writerow(row, [vec])
+                    written = write_batch(accu, col, model, enricher, args.batch, args.device)
                     accu = []
-                    
-                    progress.update(args.batch)
+
+                    progress.update(written)
                 
-            gen = compute([it[col] for it in accu], model, batch_size = args.batch)
-            for (row, vec) in zip(accu, gen):
-                enricher.writerow(row, [vec])
-            progress.update(len(accu))
+            written = write_batch(accu, col, model, enricher, args.batch, args.device)
+            progress.update(written)
 
 if __name__ == "__main__":
     main()
